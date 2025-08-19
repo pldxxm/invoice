@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+    <%- include('../partials/header') %>
+
+    <body>
+        <h1 class="text-5xl font-bold underline mb-8 text-center">Test</h1>
+        
+        <div class="container mx-auto px-4">
+            <div class="overflow-x-auto">
+                <table class="table table-zebra table-auto table-pin-rows w-full">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Name</th>
+                            <th>Job</th>
+                            <th>Company</th>
+                            <th>Location</th>
+                            <th>Last Login</th>
+                            <th>Favorite Color</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>1</th>
+                            <td>Cy Ganderton</td>
+                            <td>Quality Control Specialist</td>
+                            <td>Littel, Schaden and Vandervort</td>
+                            <td>Canada</td>
+                            <td>12/16/2020</td>
+                            <td>Blue</td>
+                        </tr>
+                        <tr>
+                            <th>2</th>
+                            <td>Hart Hagerty</td>
+                            <td>Desktop Support Technician</td>
+                            <td>Zemlak, Daniel and Leannon</td>
+                            <td>United States</td>
+                            <td>12/5/2020</td>
+                            <td>Purple</td>
+                        </tr>
+                        <tr>
+                            <th>3</th>
+                            <td>Brice Swyre</td>
+                            <td>Tax Accountant</td>
+                            <td>Carroll Group</td>
+                            <td>China</td>
+                            <td>8/15/2020</td>
+                            <td>Red</td>
+                        </tr>
+                        <tr>
+                            <th>4</th>
+                            <td>Marjy Ferencz</td>
+                            <td>Office Assistant I</td>
+                            <td>Rowe-Schoen</td>
+                            <td>Russia</td>
+                            <td>3/25/2021</td>
+                            <td>Crimson</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <button
+        class="inline-block cursor-pointer bg-gray-800 text-white">
+        rawButton1
+        </button>
+        <div data-theme="coffee" class=" flex gap-4 justify-center ">
+        <button> Button1 </button>
+        <button class="btn  w-[400px] rounded-full px-16"> PrimaryButton </button>
+         <button class="btn btn-secondary btn-outline"> Button2 </button> 
+         <button class="btn btn-accent btn-outline"> Button </button>
+        </div>
+
+    </body>
+    <%- include('../partials/footer') %>
+</html>

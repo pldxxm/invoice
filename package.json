@@ -1,0 +1,35 @@
+{
+  "name": "invoice",
+  "version": "1.0.0",
+  "description": "An invocie full-stack app  ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon index.js",
+    "devcss": "postcss public/styles/tailwind.css -o public/styles/style.css -w",
+    "seed:test": "node scripts/seed_test.js",
+    "seed:clear": "node scripts/clear_test.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "daisyui": "^5.0.50",
+    "nodemon": "^3.1.10",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "tailwindcss": "^3.4.17"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "connect-flash": "^0.1.1",
+    "connect-mongo": "^5.1.0",
+    "dotenv": "^17.2.1",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "express-validator": "^7.2.1",
+    "mongoose": "^8.17.0",
+    "morgan": "^1.10.1"
+  }
+}
