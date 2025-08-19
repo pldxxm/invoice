@@ -1,79 +1,296 @@
+<div class="w-full" id="ScreenContainer">
+  <div class="flex w-full items-center justify-between" id="customerHeader">
+    <h1 class="text-2xl"><%= title %></h1>
+  </div>
 
-<div class="w-full">
-    <div class="flex w-full items-center justify-between">
-      <h1 class="text-2xl"><%= title %></h1>
-    </div>
-    <form>
-     <!-- Search Customer Input Container-->
-      <div class="mt-4 flex items-center justify-between gap-2 md:mt-8">
-        <div class="relative flex flex-1 flex-shrink-0">
-          <label for="search" class="input input-bordered flex items-center gap-2 w-full">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input id="search" name="search" type="text" class="grow" placeholder="Search
-   customers..." />
-          </label>
-      <!-- Add  Customer Button -->    
-        </div>
-        <a class="btn btn-primary" href="customers/create">
-          <i class="fa-solid fa-plus fa-lg mr-2"></i>
-          New Customer
-        </a>
+  <form id="customerSearchForm">
+    <!-- Search Customer Input Container-->
+    <div class="mt-4 flex items-center justify-between gap-2 md:mt-8">
+      <div class="relative flex flex-1 flex-shrink-0">
+        <label
+          for="search"
+          class="input input-bordered flex items-center gap-2 w-full"
+        >
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input
+            id="search"
+            name="search"
+            type="text"
+            class="grow"
+            placeholder="Search
+   customers..."
+          />
+        </label>
       </div>
-    </form>
-<!-- Customer Data Table-->
-    
-    <div class="mt-6 overflow-x-auto bg-slate-100 rounded-lg p-2">
-        <table class="table table-zebra table-pin-rows " >
-          <thead>
-            <tr class="row-hover">
-              <th>Name</th>
-              <th>Email</th>
-              <th>Address</th>
-              <th>Phone</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% customers.forEach(function(customer){ %>
-            <tr class="row-hover">
-              <td> <%= customer.name %> </td>
-              <td> <%= customer.email %> </td>
-              <td> <%= customer.address %> </td>
-              <td> <%= customer.phone %> </td>
-              <td>
-                <div class="flex justify-end gap-3">
-                  <a class="rounded-md border p-2 hover:bg-gray-100" href="customers/<%= customer._id
-      %>/edit"><i class="fa-solid fa-pen-to-square fa-lg"></i></a>
-                  <button class="rounded-md border p-2 hover:bg-gray-100" onclick="deleteModal('<%= customer._id %>')"> \
-                    <span class="sr-only">Delete</span><i class="fa-solid fa-trash fa-lg"></i>
-       </button>
-                </div>
-              </td>
-            </tr>
-            <% }); %>
-          </tbody>
-        </table>
-       </div>
-   </div>
 
-   <!-- Delete Customer Modal -->
-   <dialog id="delete-modal" class="modal">
-    <div class="modal-box">
-      <h3 class="font-bold text-lg">Are you sure?</h3>
-      <p class="py-4">All invoices related to the customer will be deleted</p>
-      <div class="modal-action">
-        <form id='delete-form' method="post"><button class="btn btn-danger">Yes</button></form>
-        <form method="dialog"><button class="btn">Cancel</button></form>
+      <!-- Add Cutomer Button-->
+      <a class="btn btn-primary" href="customers/create">
+        <i class="fa-solid fa-plus fa-lg mr-2"></i>
+        New Customer
+      </a>
+    </div>
+  </form>
+
+  <!-- Customer Data Table-->
+  <div
+    id="customerTableContainer"
+    class="mt-6 overflow-x-auto bg-slate-100 rounded-lg p-2"
+  >
+    <table class="table table-zebra table-pin-rows">
+      <thead>
+        <tr class="row-hover">
+          <th>Name</th>
+          <th>Email</th>
+          <th>Address</th>
+          <th>Phone</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="customerTableBody">
+        <% customers.forEach(function(customer){ %>
+        <tr class="row-hover">
+          <td><%= customer.name %></td>
+          <td><%= customer.email %></td>
+          <td><%= customer.address %></td>
+          <td><%= customer.phone %></td>
+          <td>
+            <div class="flex justify-end gap-3">
+              <a
+                class="rounded-md border p-2 hover:bg-gray-100"
+                href="customers/<%= customer._id
+      %>/edit"
+                ><i class="fa-solid fa-pen-to-square fa-lg"></i
+              ></a>
+              <button
+                class="rounded-md border p-2 hover:bg-gray-100"
+                onclick="deleteModal('<%= customer._id %>')"
+              >
+                \ <span class="sr-only">Delete</span
+                ><i class="fa-solid fa-trash fa-lg"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+
+    <!-- 分页区 -->
+    <div
+      id="customerPaginationContainer"
+      class="mt-6 flex items-center justify-between"
+    >
+      <!-- 显示当前展示的对象的序号范围-->
+
+      <div id="customerPaginationInfo" class="text-sm text-gray-700">
+        Showing <%= (currentPage - 1) * 10 + 1 %> to <%= Math.min(currentPage *
+        10, totalCustomers) %> of <%= totalCustomers %> results
+      </div>
+      <!-- 分页按钮区-->
+      <div id="customerPaginationButtons" class="flex gap-2">
+        <% if (hasPrevPage) { %>
+        <!-- 上一页按钮-->
+        <button
+          class="btn btn-outline btn-sm"
+          onclick="changePage(`<%= currentPage - 1 %>`)"
+        >
+          Previous
+        </button>
+        <% } %>
+
+        <!-- 动态生成页码的按钮 -->
+        <% for(let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages,
+        currentPage + 2); i++) { %>
+        <button
+          class="btn btn-sm <%= i === currentPage ? 'btn-primary' : 'btn-outline' %>"
+          onclick="changePage(`<%= i %>`)"
+        >
+          <%= i %>
+        </button>
+        <% } %>
+
+        <!-- 下一页按钮-->
+        <% if (hasNextPage) { %>
+        <button
+          class="btn btn-outline btn-sm"
+          onclick="changePage(`<%= currentPage + 1 %>`)"
+        >
+          Next
+        </button>
+        <% } %>
       </div>
     </div>
-   </dialog>
+  </div>
+</div>
 
-   <!-- Delete Customer Modal Script-->
-   <script>
-    function deleteModal(customerId){
-      const modal = document.querySelector('#delete-modal');
-      const deleteForm = document.querySelector('#delete-form');
-      deleteForm.setAttribute('action', `customers/${customerId}/delete`)
-      modal.showModal();
+<!-- Delete Customer Modal -->
+<dialog id="delete-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Are you sure?</h3>
+    <p class="py-4">All invoices related to the customer will be deleted</p>
+    <div class="modal-action">
+      <form id="delete-form" method="post">
+        <button class="btn btn-danger">Yes</button>
+      </form>
+      <form method="dialog"><button class="btn">Cancel</button></form>
+    </div>
+  </div>
+</dialog>
+
+<!-- pagination and Search Scripts-->
+<script>
+  let currentSearch = "<%=search %>";
+  let currentPage = `<%= currentPage %>`;
+  let isloading = false;
+
+  function changePage(targetPage) {
+    if (targetPage === currentPage || isloading) return;
+    currentPage = targetPage;
+    console.log("changing to page", currentPage);
+    loadCustomers();
+  }
+
+  async function loadCustomers() {
+    if (isloading) return;
+    isloading = true;
+
+    try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 10,
+      });
+      if (currentSearch) {
+        params.set("search", currentSearch);
+      }
+      console.log(params);
+      const url = `/api/customers/filter?${params.toString()}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch customers");
+      }
+      const data = await response.json();
+      updateTableContent(data.customers);
+      updatePaginationInfo(data);
+      updateURLstate();
+    } catch (error) {
+      console.error("Error loading Customers:", error);
+    } finally {
+      isloading = false;
     }
-   </script>
+  }
+
+  function updateURLstate() {
+    const urlObj = new URL(window.location);
+    // 设置分页参数
+    urlObj.searchParams.set("page", currentPage);
+
+    // 设置搜索参数
+    if (currentSearch) {
+      urlObj.searchParams.set("search", currentSearch);
+    }
+    window.history.pushState({}, "", urlObj.toString());
+  }
+
+  // 更新表格内容
+  function updateTableContent(customers) {
+    const tbody = document.getElementById("customerTableBody");
+
+    tbody.innerHTML = customers
+      .map(
+        (customer) => `
+    <tr class="row-hover">
+      <td>${customer.name || ""}</td>
+      <td>${customer.email || ""}</td>
+      <td>${customer.address || ""}</td>
+      <td>${customer.phone || ""}</td>
+      <td>
+        <div class="flex justify-end gap-3">
+          <a class="rounded-md border p-2 hover:bg-gray-100" href="customers/${
+            customer._id
+          }/edit">
+            <i class="fa-solid fa-pen-to-square fa-lg"></i>
+          </a>
+          <button class="rounded-md border p-2 hover:bg-gray-100" onclick="deleteModal('${
+            customer._id
+          }')">
+            <span class="sr-only">Delete</span>
+            <i class="fa-solid fa-trash fa-lg"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `
+      )
+      .join("");
+  }
+
+  // 更新分页信息
+  function updatePaginationInfo(data) {
+    const {
+      currentPage,
+      totalPages,
+      hasNextPage,
+      hasPrevPage,
+      totalCustomers,
+    } = data;
+
+    // 更新分页信息显示
+    document.getElementById("customerPaginationInfo").innerHTML = `Showing ${
+      (currentPage - 1) * 10 + 1
+    } to ${Math.min(
+      currentPage * 10,
+      totalCustomers
+    )} of ${totalCustomers} results`;
+
+    // 更新分页按钮
+    updatePaginationButtons(currentPage, totalPages, hasNextPage, hasPrevPage);
+  }
+
+  // 更新分页按钮
+  function updatePaginationButtons(
+    currentPage,
+    totalPages,
+    hasNextPage,
+    hasPrevPage
+  ) {
+    const buttonsContainer = document.getElementById(
+      "customerPaginationButtons"
+    );
+
+    let buttonsHTML = "";
+
+    // 上一页按钮
+    if (hasPrevPage) {
+      buttonsHTML += `<button class="btn btn-outline btn-sm" onclick="changePage(${
+        currentPage - 1
+      })">Previous</button>`;
+    }
+
+    // 页码按钮
+    for (
+      let i = Math.max(1, currentPage - 2);
+      i <= Math.min(totalPages, currentPage + 1);
+      i++
+    ) {
+      buttonsHTML += `<button class="btn btn-sm ${
+        i === currentPage ? "btn-primary" : "btn-outline"
+      }" onclick="changePage(${i})">${i}</button>`;
+    }
+
+    // 下一页按钮
+    if (hasNextPage) {
+      buttonsHTML += `<button class="btn btn-outline btn-sm" onclick="changePage(${
+        currentPage + 1
+      })">Next</button>`;
+    }
+
+    buttonsContainer.innerHTML = buttonsHTML;
+  }
+
+  function deleteModal(customerId) {
+    const modal = document.querySelector("#delete-modal");
+    const deleteForm = document.querySelector("#delete-form");
+    deleteForm.setAttribute("action", `customers/${customerId}/delete`);
+    modal.showModal();
+  }
+</script>
