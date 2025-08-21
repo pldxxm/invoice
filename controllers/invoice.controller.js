@@ -10,32 +10,101 @@ const validateInvoice = [
   body("status", "Select the Status").notEmpty(),
 ];
 
-const showInvoices = async (req, res) => {
-  const query = { owner: req.session.userId };
-  const { search } = req.query;
-  const invoices = await populateInvoices(Invoice.find(query), search);
-  res.render("pages/invoices", {
-    title: "Invoices",
-    type: "data",
+
+// create a hepler funciton to fetch invoices data ,use both for render function and api function 
+const fetchInvoicesData = async (owner, page, limit, search) => {
+  const [list, total] = await Promise.all([
+    Invoice.getPaginatedInvoices(owner, page, limit, search),
+    Invoice.countDocuments({ owner }),
+  ]);
+  const invoices = (list || []).filter((inv) => inv && inv.customer);
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  return {
     invoices,
-    USDollar,
-    info: req.flash("info")[0],
-  });
+    totalInvoices: total,
+    pageMeta: {
+      currentPage: page,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+      limit,
+    },
+  };
+}
+
+
+// render function for invoices page
+const showInvoices = async (req, res) => {
+  try {
+    const owner = req.session.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
+    const {invoices, totalInvoices, pageMeta} = await fetchInvoicesData(owner, page, limit, search);
+
+    res.render("pages/invoices", {
+      title: "Invoices",
+      type: "data",
+      invoices: invoices,
+      totalInvoices: totalInvoices,
+      ...pageMeta,
+      search: search,
+      USDollar,
+      info: req.flash("info")[0],
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
-const populateInvoices = (query, search) => {
-  const populatOptions = {
-    path: "customer",
-    model: Customer,
-    select: "_id name",
-  };
-  if (search) {
-    populatOptions.match = { name: { $regex: search, $options: "i" } };
+// api to get filtered invoices
+const getFilteredInvoices = async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const search = req.query.search || "";
+  const owner = req.session.userId;
+  try {
+    if (page < 1 || limit < 1 || limit > 100) {
+      throw new Error("Invalid pagination parameters");
+    }
+    const data = await fetchInvoicesData(owner, page, limit, search);
+
+    return res.json(data);
+  } catch (error) {
+    if (error.message === "Invalid pagination parameters") {
+      req.flash("info", {
+        message: "Invalid pagination parameters",
+        type: "error",
+      });
+      return res.redirect("/api/invoices");
+    }
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
-  return query
-    .populate(populatOptions)
-    .then((invoices) => invoices.filter((invoice) => invoice.customer != null));
 };
+
+// const populateInvoices = async (query, search) => {
+//   const options = {
+//     path: "customer",
+//     model: Customer,
+//     select: "_id name",
+//   };
+//   if (search) {
+//     options.match = { name: { $regex: search, $options: "i" } };
+//   }
+
+//   let populated;
+//   // Real mongoose query: has populate() that returns a thenable
+//   if (query && typeof query.populate === "function") {
+//     populated = await query.populate(options);
+//   } else {
+//     // Tests may pass an array directly
+//     populated = Array.isArray(query) ? query : [];
+//   }
+
+//   return populated.filter((inv) => inv && inv.customer != null);
+// };
 
 const getCreateInvoice = async (req, res) => {
   res.render("pages/invoices", {
@@ -145,7 +214,7 @@ const getLatestInvoices = async (req) => {
 
 module.exports = {
   showInvoices,
-  populateInvoices,
+  getFilteredInvoices,
   getCreateInvoice,
   getCustomers,
   createInvoice,

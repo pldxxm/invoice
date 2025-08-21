@@ -36,7 +36,7 @@
           <th></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="invoiceTableBody">
         <% invoices.forEach(function(invoice){ %>
         <tr>
           <td><%= invoice.customer.name %></td>
@@ -56,6 +56,7 @@
             <% } %>
           </td>
           <td>
+
             <div class="flex justify-end gap-3">
               <a
                 class="rounded-md border p-2 hover:bg-gray-100"
@@ -77,6 +78,21 @@
       </tbody>
     </table>
   </div>
+  <div id="invoicePaginationContainer" class="mt-6 flex items-center justify-between">
+    <div id="invoicePaginationInfo" class="text-sm text-gray-700">
+      <% if (totalInvoices === 0) { %> Showing 0 results <% } else { %>
+        Showing <%= (currentPage - 1) * limit + 1 %> to <%= Math.min(currentPage
+        * limit, totalInvoices) %> of <%= totalInvoices %> results <% } %>
+    </div>
+    <div id="invoiceLimitSelection" class="flex gap-2 items-center">
+      <span class="text-sm text-gray-600">Rows per page:</span>
+      <button class="btn btn-md <%= limit === 10 ? 'btn-primary font-bold' : 'btn-outline' %>" onclick="setLimit(10)" <%= limit === 10 ? 'disabled' : '' %>>10</button>
+      <button class="btn btn-md <%= limit === 20 ? 'btn-primary font-bold' : 'btn-outline' %>" onclick="setLimit(20)" <%= limit === 20 ? 'disabled' : '' %>>20</button>
+      <button class="btn btn-md <%= limit === 50 ? 'btn-primary font-bold' : 'btn-outline' %>" onclick="setLimit(50)" <%= limit === 50 ? 'disabled' : '' %>>50</button>
+    </div>
+    <div id="invoicePaginationButtons" class="flex gap-2">
+    </div>
+  </div>
 </div>
 <dialog id="delete-modal" class="modal">
   <div class="modal-box">
@@ -93,10 +109,156 @@
   </div>
 </dialog>
 <script>
+  // 首次加载页面从server端返回参数初始值
+  const USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+  let currentPage = Number(`<%= currentPage %>`);
+  let limit = Number(`<%= limit %>`) || 10;
+  let currentSearch = "<%= (typeof search !== 'undefined' ? search : '') %>";
+  let isLoading = false;
+
   function deleteModal(invoiceId) {
     const modal = document.querySelector("#delete-modal");
     const deleteForm = document.querySelector("#delete-form");
     deleteForm.setAttribute("action", `invoices/${invoiceId}/delete`);
     modal.showModal();
   }
+
+   function changePage(targetPage) {
+    targetPage = Number(targetPage);
+    if (targetPage === currentPage || isLoading) return;
+    currentPage = targetPage;
+    loadInvoices();
+  }
+
+ async function loadInvoices() {
+    if(isLoading) return ;
+    isLoading = true;
+    try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: limit,
+      });
+      if(currentSearch){
+        params.set("search", currentSearch);
+      }
+      const url = `/api/invoices/query?${params.toString()}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch invoices");
+      }
+      const data = await response.json();
+      updateTableContent(data.invoices || []);
+      updatePaginationInfo(data);
+      updatePaginationButtons(data.currentPage, data.totalPages, data.hasNextPage, data.hasPrevPage);
+      updateURLstate();
+    } catch (error) {
+      console.error("Error loading invoices:", error);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+
+ // update pagination info 
+  function updatePaginationInfo(data){
+    const { currentPage=1, totalPages=1, totalInvoices=0, limit=10 } = data;
+    document.getElementById("invoicePaginationInfo").innerHTML = `Showing ${
+      (currentPage - 1) * limit + 1
+    } to ${Math.min(currentPage * limit, totalInvoices)} of ${totalInvoices} results`;
+  }
+
+  function updatePaginationButtons(currentPage,
+   totalPages, 
+   hasNextPage, 
+   hasPrevPage){
+    currentPage = Number(currentPage);
+    totalPages = Number(totalPages);
+    const pageBtn = (page,text,isActive = false) => 
+      `<button class="btn btn-md ${
+        isActive ? "btn-primary" : "btn-outline"
+      }" onclick="changePage(${page})">${text}</button>`;
+
+    let buttonsHTML = "";
+     
+    const windowSize = 2;
+    const pageLeft = Math.max(2, currentPage - windowSize);
+    const pageRight = Math.min(totalPages-1, currentPage + windowSize);
+    if(hasPrevPage){
+      buttonsHTML += pageBtn(currentPage - 1,"Previous", false);
+    }
+    if(totalPages > 1) {
+      buttonsHTML += pageBtn(1, 1, currentPage === 1);
+    }
+    if(pageLeft >2){
+      buttonsHTML += `<span class="px-2">...</span>`;
+    }
+    for (let i=pageLeft;i<=pageRight;i++){
+      buttonsHTML += pageBtn(i, i, i === currentPage);
+    }
+    if (pageRight < totalPages - 1){
+      buttonsHTML += `<span class="px-2">...</span>`;
+    }
+    if(totalPages > 1){
+      buttonsHTML += pageBtn(totalPages, totalPages, currentPage === totalPages);
+    }
+    if (hasNextPage){
+      buttonsHTML += pageBtn(currentPage + 1,"Next", false);
+    }
+    const buttonsContainer = document.getElementById("invoicePaginationButtons");
+
+    buttonsContainer.innerHTML = buttonsHTML;
+  }
+  
+  function updateTableContent(invoices){
+    const tbody = document.getElementById("invoiceTableBody");
+    tbody.innerHTML = invoices.map(inv => `
+      <tr>
+        <td>${inv.customer && inv.customer.name ? inv.customer.name : ''}</td>
+        <td>${USD.format(inv.amount || 0)}</td>
+        <td>${inv.date ? new Date(inv.date).toLocaleDateString('zh-CN') : ''}</td>
+        <td></td>
+        <td>
+          <div class="flex justify-end gap-3">
+            <a class="rounded-md border p-2 hover:bg-gray-100" href="invoices/${inv._id}/edit">
+              <i class="fa-solid fa-pen-to-square fa-lg"></i>
+            </a>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function updateURLstate(){
+    const urlObj = new URL(window.location);
+    urlObj.searchParams.set("page", currentPage);
+    urlObj.searchParams.set("limit", limit);
+    if (currentSearch) {
+      urlObj.searchParams.set("search", currentSearch);
+    }
+    window.history.pushState({}, "", urlObj.toString());
+  }
+  
+  
+//   function setLimit(newLimit) {
+//     if (limit === newLimit || isloading ) return;
+//     limit = newLimit;
+//     currentPage=1;
+//     const btns = document.querySelectorAll('#invoiceLimitSelection .btn');
+//     btns.forEach(b => {
+//       const val = parseInt(b.textContent, 10);
+//       b.classList.toggle('btn-primary', val === newLimit);
+//       b.classList.toggle('btn-outline', val !== newLimit);
+//       b.disabled = (val === newLimit);
+//   });
+
+//       loadInvoices();
+// }
+ 
+    updatePaginationButtons(
+      Number(`<%= currentPage %>`),
+      Number(`<%= totalPages %>`),
+      `<%= hasNextPage %>`,
+      `<%= hasPrevPage %>`
+    );
 </script>
+

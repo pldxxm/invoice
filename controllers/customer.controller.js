@@ -24,9 +24,16 @@ const showCustomers = async (req, res) => {
       ...pagination,
       search: req.query.search || "",
       info: req.flash("info")[0],
-      errors: req.flash("errors") || [],
+      // errors: req.flash("errors") || [],
     });
   } catch (error) {
+    if (error.message === "Invalid pagination parameters") {
+      req.flash("info", {
+        message: "Invalid pagination parameters",
+        type: "error",
+      });
+      return res.redirect("/api/customers");
+    }
     console.error(error);
     res.status(500).send("Internal Server Error");
   }
@@ -46,6 +53,13 @@ const getFilteredCustomers = async (req, res) => {
       search: req.query.search || "",
     });
   } catch (error) {
+    if (error.message === "Invalid pagination parameters") {
+      req.flash("info", {
+        message: "Invalid pagination parameters",
+        type: "error",
+      });
+      return res.redirect("/api/customers");
+    }
     console.error(error);
     res.status(500).json({ error: error.message });
   }
@@ -70,6 +84,12 @@ const buildCustomerQuery = (req) => {
 const getPaginationParams = (req) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
+
+  // exclude invalid page and limit values
+  if (page < 1 || limit < 1 || limit > 100) {
+    throw new Error("Invalid pagination parameters");
+  }
+
   const skip = (page - 1) * limit;
 
   return { page, limit, skip };
@@ -83,9 +103,11 @@ const executeCustomerQuery = async (query, page, limit, skip) => {
 
   const totalPages = Math.ceil(totalCustomers / limit);
 
-  page = page > totalPages ? totalPages : page;
+  if (page > totalPages) {
+    page = totalPages;
+  }
 
-  skip = page > totalPages ? (totalPages - 1) * limit : skip;
+  skip = (page - 1) * limit;
 
   return {
     customers,
@@ -95,6 +117,7 @@ const executeCustomerQuery = async (query, page, limit, skip) => {
       totalPages: totalPages,
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1,
+      limit: limit,
     },
   };
 };

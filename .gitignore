@@ -18,3 +18,5 @@ coverage/
 *.tmp
 # End of Selection
 needs.md
+tests/
+jest.config.js

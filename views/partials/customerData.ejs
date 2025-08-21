@@ -47,7 +47,13 @@
         </tr>
       </thead>
       <tbody id="customerTableBody">
-        <% customers.forEach(function(customer){ %>
+        <% if (customers.length === 0) { %>
+        <tr>
+          <td colspan="5" class="text-center text-gray-500 py-6">
+            No customers found
+          </td>
+        </tr>
+        <% } else { %> <% customers.forEach(function(customer){ %>
         <tr class="row-hover">
           <td><%= customer.name %></td>
           <td><%= customer.email %></td>
@@ -57,21 +63,21 @@
             <div class="flex justify-end gap-3">
               <a
                 class="rounded-md border p-2 hover:bg-gray-100"
-                href="customers/<%= customer._id
-      %>/edit"
-                ><i class="fa-solid fa-pen-to-square fa-lg"></i
-              ></a>
+                href="customers/<%= customer._id %>/edit"
+              >
+                <i class="fa-solid fa-pen-to-square fa-lg"></i>
+              </a>
               <button
                 class="rounded-md border p-2 hover:bg-gray-100"
                 onclick="deleteModal('<%= customer._id %>')"
               >
-                \ <span class="sr-only">Delete</span
-                ><i class="fa-solid fa-trash fa-lg"></i>
+                <span class="sr-only">Delete</span>
+                <i class="fa-solid fa-trash fa-lg"></i>
               </button>
             </div>
           </td>
         </tr>
-        <% }); %>
+        <% }); %> <% } %>
       </tbody>
     </table>
 
@@ -83,42 +89,31 @@
       <!-- 显示当前展示的对象的序号范围-->
 
       <div id="customerPaginationInfo" class="text-sm text-gray-700">
-        Showing <%= (currentPage - 1) * 10 + 1 %> to <%= Math.min(currentPage *
-        10, totalCustomers) %> of <%= totalCustomers %> results
+        <% if (totalCustomers === 0) { %> Showing 0 results <% } else { %>
+        Showing <%= (currentPage - 1) * limit + 1 %> to <%= Math.min(currentPage
+        * limit, totalCustomers) %> of <%= totalCustomers %> results <% } %>
+      </div>
+      <!-- limit selection -->
+      <div id="customerLimitSelection" class="flex gap-2 items-center">
+        <span class="text-sm text-gray-600">Rows per page:</span>
+        <button
+          class="btn btn-md <%= limit === 10 ? 'btn-primary font-bold' : 'btn-outline' %>"
+          onclick="setLimit(10)"
+          <%= limit === 10 ? 'disabled' : '' %>
+        >10</button>
+        <button
+          class="btn btn-md  <%= limit === 20 ? 'btn-primary font-bold' : 'btn-outline' %>"
+          onclick="setLimit(20)"
+          <%= limit === 20 ? 'disabled' : '' %>
+        >20</button>
+        <button
+          class="btn btn-md  <%= limit === 50 ? 'btn-primary font-bold' : 'btn-outline' %>"
+          onclick="setLimit(50)"
+          <%= limit === 50 ? 'disabled' : '' %>
+        >50</button>
       </div>
       <!-- 分页按钮区-->
-      <div id="customerPaginationButtons" class="flex gap-2">
-        <% if (hasPrevPage) { %>
-        <!-- 上一页按钮-->
-        <button
-          class="btn btn-outline btn-sm"
-          onclick="changePage(`<%= currentPage - 1 %>`)"
-        >
-          Previous
-        </button>
-        <% } %>
-
-        <!-- 动态生成页码的按钮 -->
-        <% for(let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages,
-        currentPage + 2); i++) { %>
-        <button
-          class="btn btn-sm <%= i === currentPage ? 'btn-primary' : 'btn-outline' %>"
-          onclick="changePage(`<%= i %>`)"
-        >
-          <%= i %>
-        </button>
-        <% } %>
-
-        <!-- 下一页按钮-->
-        <% if (hasNextPage) { %>
-        <button
-          class="btn btn-outline btn-sm"
-          onclick="changePage(`<%= currentPage + 1 %>`)"
-        >
-          Next
-        </button>
-        <% } %>
-      </div>
+      <div id="customerPaginationButtons" class="flex gap-2"></div>
     </div>
   </div>
 </div>
@@ -142,13 +137,28 @@
   let currentSearch = "<%=search %>";
   let currentPage = `<%= currentPage %>`;
   let isloading = false;
+  let limit = parseInt(`<%= limit %>`) || 10;
 
   function changePage(targetPage) {
     if (targetPage === currentPage || isloading) return;
     currentPage = targetPage;
-    console.log("changing to page", currentPage);
     loadCustomers();
   }
+
+  function setLimit(newLimit) {
+    if (limit === newLimit || isloading ) return;
+    limit = newLimit;
+    currentPage=1;
+    const btns = document.querySelectorAll('#customerLimitSelection .btn');
+    btns.forEach(b => {
+      const val = parseInt(b.textContent, 10);
+      b.classList.toggle('btn-primary', val === newLimit);
+      b.classList.toggle('btn-outline', val !== newLimit);
+      b.disabled = (val === newLimit);
+  });
+
+      loadCustomers();
+}
 
   async function loadCustomers() {
     if (isloading) return;
@@ -157,7 +167,7 @@
     try {
       const params = new URLSearchParams({
         page: currentPage,
-        limit: 10,
+        limit: limit,
       });
       if (currentSearch) {
         params.set("search", currentSearch);
@@ -171,6 +181,8 @@
       const data = await response.json();
       updateTableContent(data.customers);
       updatePaginationInfo(data);
+      updatePaginationButtons(data.currentPage, data.totalPages, data.hasNextPage, data.hasPrevPage);
+
       updateURLstate();
     } catch (error) {
       console.error("Error loading Customers:", error);
@@ -181,8 +193,9 @@
 
   function updateURLstate() {
     const urlObj = new URL(window.location);
-    // 设置分页参数
+    // 设置分页参数, 保持跨页面的一致性
     urlObj.searchParams.set("page", currentPage);
+    urlObj.searchParams.set("limit", limit.toString());
 
     // 设置搜索参数
     if (currentSearch) {
@@ -226,60 +239,80 @@
 
   // 更新分页信息
   function updatePaginationInfo(data) {
-    const {
-      currentPage,
-      totalPages,
-      hasNextPage,
-      hasPrevPage,
-      totalCustomers,
-    } = data;
+    const page = Number(data.currentPage) || 1;
+    const lim = Number(data.limit) || 10;
+    const total = Number(data.totalCustomers) || 0;
 
-    // 更新分页信息显示
-    document.getElementById("customerPaginationInfo").innerHTML = `Showing ${
-      (currentPage - 1) * 10 + 1
-    } to ${Math.min(
-      currentPage * 10,
-      totalCustomers
-    )} of ${totalCustomers} results`;
-
-    // 更新分页按钮
-    updatePaginationButtons(currentPage, totalPages, hasNextPage, hasPrevPage);
+    const el = document.getElementById("customerPaginationInfo");
+    if (!total) {
+      el.textContent = "Showing 0 results";
+      return;
+    }
+    const start = (page - 1) * lim + 1;
+    const end = Math.min(page * lim, total);
+    el.textContent = `Showing ${start} to ${end} of ${total} results`;
   }
 
-  // 更新分页按钮
   function updatePaginationButtons(
     currentPage,
     totalPages,
     hasNextPage,
     hasPrevPage
   ) {
+    currentPage = Number(currentPage);
+    totalPages = Number(totalPages);
+
     const buttonsContainer = document.getElementById(
       "customerPaginationButtons"
     );
 
+    const makeBtn = (page, isActive = false) =>
+      `<button class="btn btn-md ${
+        isActive ? "btn-primary" : "btn-outline"
+      }" onclick="changePage(${page})">${page}</button>`;
+
     let buttonsHTML = "";
 
-    // 上一页按钮
     if (hasPrevPage) {
-      buttonsHTML += `<button class="btn btn-outline btn-sm" onclick="changePage(${
+      buttonsHTML += `<button class="btn btn-outline btn-md" onclick="changePage(${
         currentPage - 1
       })">Previous</button>`;
     }
 
-    // 页码按钮
-    for (
-      let i = Math.max(1, currentPage - 2);
-      i <= Math.min(totalPages, currentPage + 1);
-      i++
-    ) {
-      buttonsHTML += `<button class="btn btn-sm ${
-        i === currentPage ? "btn-primary" : "btn-outline"
-      }" onclick="changePage(${i})">${i}</button>`;
+    if (totalPages <= 0) {
+      buttonsContainer.innerHTML = buttonsHTML;
+      return;
     }
 
-    // 下一页按钮
+    // Always show first page
+    buttonsHTML += makeBtn(1, currentPage === 1);
+
+    const windowSize = 2; // how many pages around current
+    const start = Math.max(2, currentPage - windowSize);
+    const end = Math.min(totalPages - 1, currentPage + windowSize);
+
+    // Left ellipsis
+    if (start > 2) {
+      buttonsHTML += `<span class="px-2">...</span>`;
+    }
+
+    // Middle range
+    for (let i = start; i <= end; i++) {
+      buttonsHTML += makeBtn(i, i === currentPage);
+    }
+
+    // Right ellipsis
+    if (end < totalPages - 1) {
+      buttonsHTML += `<span class="px-2">...</span>`;
+    }
+
+    // Always show last page
+    if (totalPages > 1) {
+      buttonsHTML += makeBtn(totalPages, currentPage === totalPages);
+    }
+
     if (hasNextPage) {
-      buttonsHTML += `<button class="btn btn-outline btn-sm" onclick="changePage(${
+      buttonsHTML += `<button class="btn btn-outline btn-md" onclick="changePage(${
         currentPage + 1
       })">Next</button>`;
     }
@@ -293,4 +326,12 @@
     deleteForm.setAttribute("action", `customers/${customerId}/delete`);
     modal.showModal();
   }
+
+  // render initial pagination buttons based on server values
+  updatePaginationButtons(
+    Number(`<%= currentPage %>`),
+    Number(`<%= totalPages %>`),
+    `<%= hasNextPage %>`,
+    `<%= hasPrevPage %>`
+  );
 </script>
