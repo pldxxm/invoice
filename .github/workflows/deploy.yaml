@@ -36,6 +36,8 @@ jobs:
           REMOTE_HOST: ${{ secrets.EC2_PUBLIC_IP }}
           REMOTE_USER: ${{ env.REMOTE_USER }}
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          SCRIPT_BEFORE: |
+            sudo mkdir -p /home/ubuntu/invoice
           SOURCE: ./
           TARGET: /home/ubuntu/invoice
           EXCLUDE: "/dist/, /node_modules/"
