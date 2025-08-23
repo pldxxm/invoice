@@ -38,9 +38,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ubuntu
-            git clone https://github.com/pldxxm/invoice.git 
+            sudo git clone https://github.com/pldxxm/invoice.git 
             cd invoice
-            
             # check and install Node.js 20.11.1
             if ! command -v node &> /dev/null || [[ "$(node --version)" != "v20.11.1" ]]; then
                 echo "Installing Node.js 20.11.1..."
@@ -62,5 +61,5 @@ jobs:
             PORT=3000
             EOF
 
-            npm install --production 
+            sudo npm install --production 
             pm2 restart index.js || pm2 start index.js
