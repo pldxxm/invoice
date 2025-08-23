@@ -33,7 +33,7 @@ jobs:
       - name: Deploy via SSH
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
-          REMOTE_HOST: ${{ secrets.EC2_PUBLIC_IP }}
+          REMOTE_HOST: ${{ vars.EC2_PUBLIC_IP }}
           REMOTE_USER: ${{ env.REMOTE_USER }}
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           SCRIPT_BEFORE: |
@@ -57,7 +57,7 @@ jobs:
                 sudo npm install -g pm2
             fi
 
-            // create .env file
+            # create .env file
             cat > .env << EOF
             NODE_ENV=production
             MONGODB_URI=${{ env.MONGODB_URI }}
