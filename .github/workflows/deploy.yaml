@@ -8,6 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: aws-ec2
 
     env: # ← Declare env variables here
       REMOTE_USER: ubuntu
