@@ -14,21 +14,33 @@ jobs:
       REMOTE_USER: ubuntu
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
       SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      PORT: 3000
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # - name: Checkout code
+      #   uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4.4.0
-        with:
-          node-version: 20.11.1
+      # - name: Setup Node.js
+      #   uses: actions/setup-node@v4.4.0
+      #   with:
+      #     node-version: 20.11.1
 
-      - name: Install CSS build dependencies
-        run: npm install postcss postcss-cli tailwindcss autoprefixer
+      # - name: Install CSS build dependencies
+      #   run: npm install postcss postcss-cli tailwindcss autoprefixer
 
-      - name: Build Css
-        run: npm run buildcss
+      # - name: Build Css
+      #   run: npm run buildcss
+
+      - name: test env
+        run: |
+          echo ${{ env.MONGODB_URI }}
+          echo ${{ env.SESSION_SECRET }}
+          echo ${{ env.PORT }}
+          echo ${{ env.REMOTE_USER }}
+          echo "secrets.EC2_PUBLIC_IP: ${{ secrets.EC2_PUBLIC_IP }}"
+          echo "secrets.EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}"
+          echo "vars.EC2_PUBLIC_IP: ${{ vars.EC2_PUBLIC_IP }}"
+          echo "vars.EC2_SSH_KEY: ${{ vars.EC2_SSH_KEY }}"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0 # ← Different action
@@ -40,6 +52,7 @@ jobs:
             cd /home/ubuntu
             sudo git clone https://github.com/pldxxm/invoice.git 
             cd invoice
+
             # check and install Node.js 20.11.1
             if ! command -v node &> /dev/null || [[ "$(node --version)" != "v20.11.1" ]]; then
                 echo "Installing Node.js 20.11.1..."
@@ -54,7 +67,7 @@ jobs:
             fi
 
             # create .env file
-            cat > .env << EOF
+            sudo cat > .env << EOF
             NODE_ENV=production
             MONGODB_URI=${{ env.MONGODB_URI }}
             SESSION_SECRET=${{ env.SESSION_SECRET }}
@@ -62,4 +75,5 @@ jobs:
             EOF
 
             sudo npm install --production 
+            sudo npm run buildcss
             pm2 restart index.js || pm2 start index.js
