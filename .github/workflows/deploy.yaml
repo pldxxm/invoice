@@ -31,18 +31,15 @@ jobs:
         run: npm run buildcss
 
       - name: Deploy via SSH
-        uses: easingthemes/ssh-deploy@v5.0.0
+        uses: appleboy/ssh-action@v1.0.0 # ← Different action
         with:
-          REMOTE_HOST: ${{ vars.EC2_PUBLIC_IP }}
-          REMOTE_USER: ${{ env.REMOTE_USER }}
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          SCRIPT_BEFORE: |
-            sudo mkdir -p /home/ubuntu/invoice
-          SOURCE: ./
-          TARGET: /home/ubuntu/invoice
-          EXCLUDE: "/dist/, /node_modules/"
-          SCRIPT_AFTER: |
+          host: ${{ vars.EC2_PUBLIC_IP }}
+          username: ${{ env.REMOTE_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            mkdir -p /home/ubuntu/invoice
             cd /home/ubuntu/invoice
+            git clone https://github.com/pldxxm/invoice.git 
 
             # check and install Node.js 20.11.1
             if ! command -v node &> /dev/null || [[ "$(node --version)" != "v20.11.1" ]]; then
@@ -64,7 +61,6 @@ jobs:
             SESSION_SECRET=${{ env.SESSION_SECRET }}
             PORT=3000
             EOF
-
 
             npm install --production 
             pm2 restart index.js || pm2 start index.js
