@@ -10,8 +10,7 @@ const validateInvoice = [
   body("status", "Select the Status").notEmpty(),
 ];
 
-
-// create a hepler funciton to fetch invoices data ,use both for render function and api function 
+// create a hepler funciton to fetch invoices data ,use both for render function and api function
 const fetchInvoicesData = async (owner, page, limit, search) => {
   const [list, total] = await Promise.all([
     Invoice.getPaginatedInvoices(owner, page, limit, search),
@@ -30,8 +29,7 @@ const fetchInvoicesData = async (owner, page, limit, search) => {
       limit,
     },
   };
-}
-
+};
 
 // render function for invoices page
 const showInvoices = async (req, res) => {
@@ -40,7 +38,12 @@ const showInvoices = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || "";
-    const {invoices, totalInvoices, pageMeta} = await fetchInvoicesData(owner, page, limit, search);
+    const { invoices, totalInvoices, pageMeta } = await fetchInvoicesData(
+      owner,
+      page,
+      limit,
+      search
+    );
 
     res.render("pages/invoices", {
       title: "Invoices",
@@ -68,9 +71,21 @@ const getFilteredInvoices = async (req, res) => {
     if (page < 1 || limit < 1 || limit > 100) {
       throw new Error("Invalid pagination parameters");
     }
-    const data = await fetchInvoicesData(owner, page, limit, search);
+    const { invoices, totalInvoices, pageMeta } = await fetchInvoicesData(
+      owner,
+      page,
+      limit,
+      search
+    );
 
-    return res.json(data);
+    return res.json({
+      invoices,
+      totalInvoices,
+      ...pageMeta,
+      search: search,
+      USDollar,
+      info: req.flash("info")[0],
+    });
   } catch (error) {
     if (error.message === "Invalid pagination parameters") {
       req.flash("info", {

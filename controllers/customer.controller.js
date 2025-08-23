@@ -96,27 +96,31 @@ const getPaginationParams = (req) => {
 };
 
 const executeCustomerQuery = async (query, page, limit, skip) => {
-  const [customers, totalCustomers] = await Promise.all([
-    Customer.find(query).skip(skip).limit(limit),
-    Customer.countDocuments(query),
-  ]);
-
+  // Compute total first to correctly clamp page and skip
+  const totalCustomers = await Customer.countDocuments(query);
   const totalPages = Math.ceil(totalCustomers / limit);
 
-  if (page > totalPages) {
-    page = totalPages;
+  // Clamp the requested page into valid bounds
+  let effectivePage = page;
+  if (totalPages === 0) {
+    effectivePage = 1; // empty state, keep page at 1 for UI consistency
+  } else if (page > totalPages) {
+    effectivePage = totalPages;
+  } else if (page < 1) {
+    effectivePage = 1;
   }
 
-  skip = (page - 1) * limit;
+  const effectiveSkip = (effectivePage - 1) * limit;
+  const customers = await Customer.find(query).skip(effectiveSkip).limit(limit);
 
   return {
     customers,
     totalCustomers,
     pagination: {
-      currentPage: page,
+      currentPage: effectivePage,
       totalPages: totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
+      hasNextPage: effectivePage < totalPages,
+      hasPrevPage: effectivePage > 1,
       limit: limit,
     },
   };

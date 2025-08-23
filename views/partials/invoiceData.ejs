@@ -147,9 +147,19 @@
         throw new Error("Failed to fetch invoices");
       }
       const data = await response.json();
-      updateTableContent(data.invoices || []);
-      updatePaginationInfo(data);
-      updatePaginationButtons(data.currentPage, data.totalPages, data.hasNextPage, data.hasPrevPage);
+      const { invoices, 
+        totalInvoices,
+         currentPage: targetPage=1, 
+         totalPages,
+         hasNextPage,
+         limit: targetLimit=10,
+         hasPrevPage
+         } = data;
+      currentPage = Number(targetPage) ||1;
+      limit = Number(targetLimit) ||10;
+      updateTableContent(invoices || []);
+      updatePaginationInfo(currentPage, totalPages, totalInvoices, limit);
+      updatePaginationButtons(currentPage, totalPages, hasNextPage, hasPrevPage);
       updateURLstate();
     } catch (error) {
       console.error("Error loading invoices:", error);
@@ -158,14 +168,17 @@
     }
   }
 
-
- // update pagination info 
-  function updatePaginationInfo(data){
-    const { currentPage=1, totalPages=1, totalInvoices=0, limit=10 } = data;
-    document.getElementById("invoicePaginationInfo").innerHTML = `Showing ${
-      (currentPage - 1) * limit + 1
-    } to ${Math.min(currentPage * limit, totalInvoices)} of ${totalInvoices} results`;
+  function updatePaginationInfo(targetPage, totalPages, totalInvoices, limit){
+    const el = document.getElementById("invoicePaginationInfo");
+    if(!totalInvoices){
+      el.textContent = "Showing 0 results";
+      return;
+    }
+    const start = (targetPage - 1) * limit + 1;
+    const end = Math.min(targetPage * limit, totalInvoices);
+    el.textContent = `Showing ${start} to ${end} of ${totalInvoices} results`;
   }
+
 
   function updatePaginationButtons(currentPage,
    totalPages, 
@@ -173,6 +186,8 @@
    hasPrevPage){
     currentPage = Number(currentPage);
     totalPages = Number(totalPages);
+    hasNextPage = Boolean(hasNextPage);
+    hasPrevPage = Boolean(hasPrevPage);
     const pageBtn = (page,text,isActive = false) => 
       `<button class="btn btn-md ${
         isActive ? "btn-primary" : "btn-outline"
@@ -239,21 +254,22 @@
   }
   
   
-//   function setLimit(newLimit) {
-//     if (limit === newLimit || isloading ) return;
-//     limit = newLimit;
-//     currentPage=1;
-//     const btns = document.querySelectorAll('#invoiceLimitSelection .btn');
-//     btns.forEach(b => {
-//       const val = parseInt(b.textContent, 10);
-//       b.classList.toggle('btn-primary', val === newLimit);
-//       b.classList.toggle('btn-outline', val !== newLimit);
-//       b.disabled = (val === newLimit);
-//   });
-
-//       loadInvoices();
-// }
+  window.setLimit = function setLimit(newLimit) {
+    if (limit === newLimit || isLoading ) return;
+    limit = newLimit;
+    currentPage=1;
+    const btns = document.querySelectorAll('#invoiceLimitSelection .btn');
+    btns.forEach(b => {
+      const val = parseInt(b.textContent, 10);
+      b.classList.toggle('btn-primary', val === newLimit);
+      b.classList.toggle('btn-outline', val !== newLimit);
+      b.disabled = (val === newLimit);
+  });
+    console.log(limit);
+      loadInvoices();
+}
  
+//fill the empty pagination buttons for first render based on server values
     updatePaginationButtons(
       Number(`<%= currentPage %>`),
       Number(`<%= totalPages %>`),

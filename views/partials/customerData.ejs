@@ -134,8 +134,9 @@
 
 <!-- pagination and Search Scripts-->
 <script>
+  
   let currentSearch = "<%=search %>";
-  let currentPage = `<%= currentPage %>`;
+  let currentPage = Number(`<%= currentPage %>`);
   let isloading = false;
   let limit = parseInt(`<%= limit %>`) || 10;
 
@@ -156,7 +157,7 @@
       b.classList.toggle('btn-outline', val !== newLimit);
       b.disabled = (val === newLimit);
   });
-
+    console.log(limit);
       loadCustomers();
 }
 
@@ -179,6 +180,7 @@
         throw new Error("Failed to fetch customers");
       }
       const data = await response.json();
+      console.log(data);
       updateTableContent(data.customers);
       updatePaginationInfo(data);
       updatePaginationButtons(data.currentPage, data.totalPages, data.hasNextPage, data.hasPrevPage);
@@ -189,7 +191,7 @@
     } finally {
       isloading = false;
     }
-  }
+  };
 
   function updateURLstate() {
     const urlObj = new URL(window.location);
@@ -316,7 +318,7 @@
         currentPage + 1
       })">Next</button>`;
     }
-
+    console.log(buttonsHTML);
     buttonsContainer.innerHTML = buttonsHTML;
   }
 
@@ -325,13 +327,13 @@
     const deleteForm = document.querySelector("#delete-form");
     deleteForm.setAttribute("action", `customers/${customerId}/delete`);
     modal.showModal();
-  }
+  };
 
   // render initial pagination buttons based on server values
   updatePaginationButtons(
-    Number(`<%= currentPage %>`),
-    Number(`<%= totalPages %>`),
-    `<%= hasNextPage %>`,
-    `<%= hasPrevPage %>`
-  );
+      Number(`<%= currentPage %>`),
+      Number(`<%= totalPages %>`),
+      '<%= hasNextPage %>',
+      '<%= hasPrevPage %>'
+    );
 </script>
