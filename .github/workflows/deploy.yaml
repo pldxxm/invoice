@@ -10,9 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env: # ← Declare env variables here
-      REMOTE_HOST: ${{ secrets.EC2_PUBLIC_IP }}
       REMOTE_USER: ubuntu
-      SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
       SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
@@ -34,9 +32,9 @@ jobs:
       - name: Deploy via SSH
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
-          REMOTE_HOST: ${{ env.REMOTE_HOST }}
+          REMOTE_HOST: ${{ secrets.EC2_PUBLIC_IP }}
           REMOTE_USER: ${{ env.REMOTE_USER }}
-          SSH_PRIVATE_KEY: ${{ env.SSH_PRIVATE_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           SOURCE: ./
           TARGET: /home/ubuntu/invoice
           EXCLUDE: "/dist/, /node_modules/"
@@ -55,7 +53,7 @@ jobs:
                 echo "Installing PM2..."
                 sudo npm install -g pm2
             fi
-            
+
             // create .env file
             cat > .env << EOF
             NODE_ENV=production
