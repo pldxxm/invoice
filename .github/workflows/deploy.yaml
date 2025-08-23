@@ -44,7 +44,6 @@ jobs:
           echo "PORT: ${{ env.PORT }}"
           echo "EC2_PUBLIC_IP: ${{ secrets.EC2_PUBLIC_IP }}"
 
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0 # ← Different action
         with:
@@ -55,19 +54,19 @@ jobs:
             cd /home/ubuntu
 
             # Set git user name and email
-            git config user.name "pldxxm"
-            git config user.email "pldxxm@gmail.com"
+            git config --global  user.name "pldxxm"
+            git config --global  user.email "pldxxm@example.com"
 
             #Clone or update repository (using token authentication)
             if [ ! -d "invoice" ]; then
               echo "Repository not found, cloning..."
-              git clone https://${{ env.TOKEN }}@github.com/pldxxm/invoice.git
+              sudo git clone https://${{ env.TOKEN }}@github.com/pldxxm/invoice.git
             else
               echo "Repository exists, pulling latest changes..."
               cd invoice
               # Update remote URL to use token
-              git remote set-url origin https://${{ env.TOKEN }}@github.com/pldxxm/invoice.git
-              git pull origin main
+              sudo git remote set-url origin https://${{ env.TOKEN }}@github.com/pldxxm/invoice.git
+              sudo git pull origin main
               cd ..
             fi
 
