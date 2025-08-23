@@ -37,10 +37,10 @@ jobs:
           username: ${{ env.REMOTE_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            mkdir -p /home/ubuntu/invoice
-            cd /home/ubuntu/invoice
+            cd /home/ubuntu
             git clone https://github.com/pldxxm/invoice.git 
-
+            cd invoice
+            
             # check and install Node.js 20.11.1
             if ! command -v node &> /dev/null || [[ "$(node --version)" != "v20.11.1" ]]; then
                 echo "Installing Node.js 20.11.1..."
