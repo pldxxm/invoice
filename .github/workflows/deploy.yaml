@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: aws-ec2
-    # changed the ssl certificate and key 
+    # changed the ssl certificate and key
     env: # ← Declare env variables here
       REMOTE_HOST: ${{ secrets.EC2_REMOTE_HOST }}
       REMOTE_USER: ubuntu
@@ -115,7 +115,31 @@ jobs:
               sudo chmod 644 /etc/nginx/ssl/fullchain.pem
               sudo chmod 600 /etc/nginx/ssl/privkey.pem
             else
-              echo "SSL certificates already exist, skipping setup..."
+              echo "SSL certificates already exist, checking for updates..."
+              
+              # Check if we have new certificates to update with
+              if [ -f "fullchain.pem" ] && [ -f "privkey.pem" ]; then
+                echo "Updating with new local fullchain.pem and privkey.pem files..."
+                sudo cp fullchain.pem /etc/nginx/ssl/
+                sudo cp privkey.pem /etc/nginx/ssl/
+                CERT_UPDATED=true
+              elif [ -n "${{ env.SSL_CERTIFICATE }}" ] && [ -n "${{ env.SSL_KEY }}" ]; then
+                echo "Updating with new SSL certificates from GitHub secrets..."
+                echo "${{ env.SSL_CERTIFICATE }}" | sudo tee /etc/nginx/ssl/fullchain.pem > /dev/null
+                echo "${{ env.SSL_KEY }}" | sudo tee /etc/nginx/ssl/privkey.pem > /dev/null
+                CERT_UPDATED=true
+              else
+                echo "No new certificates provided, keeping existing ones..."
+                CERT_UPDATED=false
+              fi
+              
+              # If certificates were updated, set proper permissions
+              if [ "$CERT_UPDATED" = true ]; then
+                echo "Setting permissions for updated certificates..."
+                sudo chown root:root /etc/nginx/ssl/fullchain.pem /etc/nginx/ssl/privkey.pem
+                sudo chmod 644 /etc/nginx/ssl/fullchain.pem
+                sudo chmod 600 /etc/nginx/ssl/privkey.pem
+              fi
             fi
 
             # Configure Nginx with HTTPS and reverse proxy (always update config)
@@ -177,6 +201,31 @@ jobs:
             if [ $? -eq 0 ]; then
               echo "Nginx config test passed, reloading..."
               sudo systemctl reload nginx
+              
+              # If certificates were updated, perform additional validation
+              if [ "$CERT_UPDATED" = true ]; then
+                echo "Validating updated SSL certificates..."
+                
+                # Check certificate expiration
+                CERT_EXPIRY=$(sudo openssl x509 -in /etc/nginx/ssl/fullchain.pem -noout -enddate | cut -d= -f2)
+                echo "Certificate expires on: $CERT_EXPIRY"
+                
+                # Check if certificate is valid
+                if sudo openssl x509 -in /etc/nginx/ssl/fullchain.pem -noout -checkend 0; then
+                  echo "✅ SSL certificate is valid and not expired"
+                else
+                  echo "⚠️  SSL certificate has expired or is invalid"
+                fi
+                
+                # Test HTTPS connection locally
+                echo "Testing HTTPS connection..."
+                if curl -k -s -o /dev/null -w "%{http_code}" https://localhost/ | grep -q "200\|301\|302"; then
+                  echo "✅ HTTPS connection test successful"
+                else
+                  echo "⚠️  HTTPS connection test failed, restarting Nginx..."
+                  sudo systemctl restart nginx
+                fi
+              fi
             else
               echo "Nginx config test failed, restarting..."
               sudo systemctl restart nginx
