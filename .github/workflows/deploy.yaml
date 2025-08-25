@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+  # allow manual deployment
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'production'
 
 jobs:
   deploy:
@@ -11,7 +18,7 @@ jobs:
     environment: aws-ec2
     # changed the ssl certificate and key
     env: # ← Declare env variables here
-      REMOTE_HOST: ${{ secrets.EC2_REMOTE_HOST }}
+      REMOTE_HOST: ${{ secrets.PUBLIC_IP }}
       REMOTE_USER: ubuntu
       # EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
