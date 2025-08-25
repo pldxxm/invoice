@@ -18,15 +18,22 @@ require("dotenv").config();
 
 require("./lib/dbConnect");
 
-// Security middleware
+// Security middleware - Allow all scripts temporarily
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https:"],
+        scriptSrcElem: ["'self'", "'unsafe-inline'", "https:"],
         imgSrc: ["'self'", "data:", "https:"],
+        fontSrc: ["'self'", "https:"],
+        connectSrc: ["'self'"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
       },
     },
   })
