@@ -123,7 +123,8 @@ if (process.env.NODE_ENV === "production") {
     })
   );
 }
-
+// trust first proxy
+app.set("trust proxy", 1);
 //enable session for authentication
 app.use(
   session({
@@ -139,7 +140,7 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production", // HTTPS only in production
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   })

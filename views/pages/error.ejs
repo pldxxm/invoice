@@ -19,8 +19,7 @@
               class="fa-solid fa-circle-exclamation text-8xl text-red-500 mb-4"
             ></i>
             <h1 class="text-4xl font-bold text-gray-800 mb-4">
-              <%= typeof errorTitle !== 'undefined' ? errorTitle : 'Something
-              went wrong' %>
+              <%= typeof errorTitle !== 'undefined' ? errorTitle : 'Something went wrong' %>
             </h1>
             <p class="text-xl text-gray-600 mb-6">
               <%= typeof errorMessage !== 'undefined' ? errorMessage : 'An
@@ -29,8 +28,7 @@
           </div>
 
           <div class="space-y-4">
-            <% if (typeof errorCode !== 'undefined' && errorCode ===
-            'invalid_pagination') { %>
+            <% if (typeof errorCode !== 'undefined' && errorCode === 'invalid_pagination') { %>
             <div
               class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6"
             >
