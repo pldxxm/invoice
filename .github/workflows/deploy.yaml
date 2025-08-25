@@ -18,7 +18,8 @@ jobs:
     environment: aws-ec2
     # changed the ssl certificate and key
     env: # ← Declare env variables here
-      REMOTE_HOST: ${{ secrets.EC2_PUBLIC_IP }}
+      REMOTE_HOST: ${{ secrets.EC2_REMOTE_HOST }}
+      REMOTE_IP: ${{ secrets.EC2_PUBLIC_IP }}
       REMOTE_USER: ubuntu
       # EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
@@ -60,7 +61,7 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0 # ← Different action
         with:
-          host: ${{ env.REMOTE_HOST }}
+          host: ${{ env.REMOTE_IP }}
           username: ${{ env.REMOTE_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
@@ -199,12 +200,13 @@ jobs:
             }
 
               #reject visiting directly from IP
-              server {
+            server {
+                listen 80 default_server;
                 listen 443 ssl http2 default_server;
                 ssl_certificate /etc/nginx/ssl/fullchain.pem;
                 ssl_certificate_key /etc/nginx/ssl/privkey.pem;
                 server_name _;
-                return 403;
+                return 444;
             }
             EOF
 
