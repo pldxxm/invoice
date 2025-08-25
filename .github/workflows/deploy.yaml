@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment Environment'
+        description: "Deployment Environment"
         required: true
-        default: 'production'
+        default: "production"
 
 jobs:
   deploy:
@@ -18,7 +18,7 @@ jobs:
     environment: aws-ec2
     # changed the ssl certificate and key
     env: # ← Declare env variables here
-      REMOTE_HOST: ${{ secrets.PUBLIC_IP }}
+      REMOTE_HOST: ${{ secrets.EC2_PUBLIC_IP }}
       REMOTE_USER: ubuntu
       # EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
