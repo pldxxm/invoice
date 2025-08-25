@@ -39,6 +39,8 @@
     "express-validator": "^7.2.1",
     "mongoose": "^8.17.0",
     "morgan": "^1.10.1",
-    "pm2": "^5.4.1"
+    "pm2": "^5.4.1",
+    "helmet": "^8.0.0",
+    "express-rate-limit": "^7.4.1"
   }
 }

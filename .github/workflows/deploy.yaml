@@ -15,9 +15,10 @@ jobs:
       REMOTE_USER: ubuntu
       # EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
-      SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      AUTH_SECRET: ${{ secrets.SESSION_SECRET}}
       TOKEN: ${{ secrets.TOKEN }}
       PORT: 3000
+      NODE_ENV: production
       tag: v1.2
       SSL_CERTIFICATE: ${{ secrets.SSL_CERTIFICATE }}
       SSL_KEY: ${{ secrets.SSL_KEY }}
@@ -42,8 +43,9 @@ jobs:
           echo "REMOTE_HOST: ${{ env.REMOTE_HOST }}"
           echo "REMOTE_USER: ${{ env.REMOTE_USER }}"
           echo "MONGODB_URI: ${{ env.MONGODB_URI }}"
-          echo "SESSION_SECRET: ${{ env.SESSION_SECRET }}"
+          echo "AUTH_SECRET: ${{ env.AUTH_SECRET }}"
           echo "PORT: ${{ env.PORT }}"
+          echo "NODE_ENV: ${{ env.NODE_ENV }}"
           echo "EC2_PUBLIC_IP: ${{ secrets.EC2_PUBLIC_IP }}"
           echo "SSL_CERTIFICATE: ${{ env.SSL_CERTIFICATE }}"
           echo "SSL_KEY: ${{ env.SSL_KEY }}"
@@ -240,14 +242,17 @@ jobs:
             # Update environment variables
             MONGODB_URI="${{ env.MONGODB_URI }}"
             SESSION_SECRET="${{ env.SESSION_SECRET }}"
+            AUTH_SECRET="${{ env.AUTH_SECRET }}"
             PORT="${{ env.PORT }}"
+            NODE_ENV="${{ env.NODE_ENV }}"
 
             # Create/update .env file
             echo "Updating environment configuration..."
             sudo tee .env > /dev/null << EOF
-              NODE_ENV=production
+              NODE_ENV=$NODE_ENV
               MONGODB_URI=$MONGODB_URI
               SESSION_SECRET=$SESSION_SECRET
+              AUTH_SECRET=$AUTH_SECRET
               PORT=$PORT
             EOF
 
@@ -258,8 +263,36 @@ jobs:
 
             # Restart or start the application
             echo "Restarting application..."
-            pm2 restart index.js ||   pm2 start index.js
+            pm2 restart index.js || pm2 start index.js
+
+            # Wait for application to start and perform health check
+            echo "Waiting for application to start..."
+            sleep 10
+
+            # Health check
+            echo "Performing health check..."
+            if curl -s -f http://localhost:3000/ > /dev/null; then
+              echo "✅ Application health check passed"
+            else
+              echo "⚠️  Application health check failed, checking logs..."
+              pm2 logs index.js --lines 20
+              echo "Attempting to restart application..."
+              pm2 restart index.js
+              sleep 5
+            fi
 
             # Final Nginx restart to ensure everything is working
             echo "Final Nginx restart..."
             sudo systemctl restart nginx
+
+            # Final verification
+            echo "Final deployment verification..."
+            if curl -s -f http://localhost:3000/ > /dev/null && sudo systemctl is-active --quiet nginx; then
+              echo "🎉 Deployment completed successfully!"
+              echo "Application is running on localhost:3000"
+              echo "Nginx is running and serving HTTPS"
+            else
+              echo "❌ Deployment verification failed"
+              echo "Please check logs and troubleshoot manually"
+              exit 1
+            fi

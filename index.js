@@ -1,5 +1,7 @@
 const express = require("express");
 const morgan = require("morgan");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const userRouter = require("./routes/user.route");
 const dashboardRouter = require("./routes/dashboard.route");
 const customerRouter = require("./routes/customer.route");
@@ -16,32 +18,98 @@ require("dotenv").config();
 
 require("./lib/dbConnect");
 
-// register a middleware function to deal with each request to log
-app.use(morgan("dev"));
+// Security middleware
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    },
+  })
+);
+
+// Rate limiting - Production-appropriate limits
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // limit each IP to 1000 requests per windowMs (about 67 requests/minute)
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Stricter limits for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 auth attempts per 15 minutes
+  message:
+    "Too many authentication attempts from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply general rate limiting to all routes
+app.use(generalLimiter);
+
+// Apply stricter rate limiting to authentication routes
+app.use("/api/user", authLimiter);
+
+// Environment-based logging
+if (process.env.NODE_ENV === "production") {
+  app.use(morgan("combined")); // Production logging
+} else {
+  app.use(morgan("dev")); // Development logging
+}
 
 // allow json in request.body
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 // allow form data in request.body
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
 // the view folder
 app.set("views", __dirname + "/views");
-app.set("view cache", false);
+// Enable view caching in production
+app.set("view cache", process.env.NODE_ENV === "production");
 //set the view engine to ejs
 app.set("view engine", "ejs");
 
-// serve static files
-// app.use(express.static(__dirname+'/public'));
-
-// disable cache for static files,get css with 200 code each tiem rather than 304
-app.use(
-  express.static(__dirname + "/public", {
-    etag: false,
-    lastModified: false,
-    cacheControl: true,
-    maxAge: 0,
-    setHeaders: (res) => res.set("Cache-Control", "no-store"),
-  })
-);
+// serve static files with production-optimized caching
+if (process.env.NODE_ENV === "production") {
+  // Production: Enable caching for static files
+  app.use(
+    express.static(__dirname + "/public", {
+      etag: true,
+      lastModified: true,
+      maxAge: "1d", // Cache for 1 day
+      setHeaders: (res, path) => {
+        if (path.endsWith(".css") || path.endsWith(".js")) {
+          res.setHeader("Cache-Control", "public, max-age=86400"); // 1 day
+        } else if (
+          path.endsWith(".png") ||
+          path.endsWith(".jpg") ||
+          path.endsWith(".jpeg") ||
+          path.endsWith(".gif")
+        ) {
+          res.setHeader("Cache-Control", "public, max-age=604800"); // 1 week
+        }
+      },
+    })
+  );
+} else {
+  // Development: Disable caching for easier development
+  app.use(
+    express.static(__dirname + "/public", {
+      etag: false,
+      lastModified: false,
+      cacheControl: true,
+      maxAge: 0,
+      setHeaders: (res) => res.set("Cache-Control", "no-store"),
+    })
+  );
+}
 
 //enable session for authentication
 app.use(
@@ -57,11 +125,13 @@ app.use(
     }),
     cookie: {
       httpOnly: true,
-      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   })
 );
+
 // enable a global middleware flash to deal with all request if necessary, no need to import in the router file again
 app.use(flash());
 
@@ -69,13 +139,18 @@ app.use(flash());
 app.get("/", (req, res) => {
   res.render("pages/index", { title: "Home" });
 });
+
 app.use("/api/user", userRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/customers", customerRouter);
 app.use("/api/invoices", invoiceRouter);
-app.get("/test", (req, res) => {
-  res.render("pages/test", { title: "Test" });
-});
+
+// Only expose test route in development
+if (process.env.NODE_ENV !== "production") {
+  app.get("/test", (req, res) => {
+    res.render("pages/test", { title: "Test" });
+  });
+}
 
 //fallback route for 404
 app.get(/.*/, (req, res) => {
@@ -90,4 +165,6 @@ const PORT = process.env.PORT || 8844;
 
 app.listen(PORT, "127.0.0.1", () => {
   console.log(`Server listening on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`Server bound to: 127.0.0.1:${PORT}`);
 });
