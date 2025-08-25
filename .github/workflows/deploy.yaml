@@ -253,8 +253,12 @@ jobs:
             PORT="${{ env.PORT }}"
             NODE_ENV="${{ env.NODE_ENV }}"
 
-            # Create/update .env file
-            echo "Updating environment configuration..."
+            # Navigate to app directory first
+            cd invoice
+            echo "Current working directory: $(pwd)"
+
+            # Create/update .env file in the correct location (invoice directory)
+            echo "Updating environment configuration in $(pwd)..."
             sudo tee .env > /dev/null << EOF
               NODE_ENV=$NODE_ENV
               MONGODB_URI=$MONGODB_URI
@@ -263,10 +267,17 @@ jobs:
               PORT=$PORT
             EOF
 
-            # Navigate to app directory and update dependencies
-            cd invoice
+            # Verify .env file was created
+            echo "Verifying .env file creation..."
+            if [ -f ".env" ]; then
+              echo "✅ .env file created successfully in $(pwd)"
+            else
+              echo "❌ .env file creation failed!"
+              exit 1
+            fi
+
             echo "Installing/updating Node.js dependencies..."
-            sudo npm install --production 
+            sudo npm install --production
 
             # Restart or start the application
             echo "Restarting application..."
