@@ -19,6 +19,8 @@ jobs:
       TOKEN: ${{ secrets.TOKEN }}
       PORT: 3000
       tag: v1.2
+      SSL_CERTIFICATE: ${{ secrets.SSL_CERTIFICATE }}
+      SSL_KEY: ${{ secrets.SSL_KEY }}
 
     steps:
       # - name: Checkout code
@@ -43,6 +45,8 @@ jobs:
           echo "SESSION_SECRET: ${{ env.SESSION_SECRET }}"
           echo "PORT: ${{ env.PORT }}"
           echo "EC2_PUBLIC_IP: ${{ secrets.EC2_PUBLIC_IP }}"
+          echo "SSL_CERTIFICATE: ${{ env.SSL_CERTIFICATE }}"
+          echo "SSL_KEY: ${{ env.SSL_KEY }}"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0 # ← Different action
@@ -70,24 +74,127 @@ jobs:
               cd ..
             fi
 
-            # Check and install Node.js 20.11.1
+            # Check and install Node.js 20.11.1 (only if not present or wrong version)
             if ! command -v node &> /dev/null || [[ "$(node --version)" != "v20.11.1" ]]; then
               echo "Installing Node.js 20.11.1..."
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
             fi
 
-            # Check and install PM2
+            # Check and install Nginx (only if not present)
+            if ! command -v nginx &> /dev/null; then
+              echo "Installing Nginx..."
+              sudo apt-get install -y nginx
+            fi
+
+            # Create SSL directory and handle certificates (only if not exists or needs update)
+            if [ ! -d "/etc/nginx/ssl" ] || [ ! -f "/etc/nginx/ssl/fullchain.pem" ] || [ ! -f "/etc/nginx/ssl/privkey.pem" ]; then
+              echo "Setting up SSL certificates..."
+              sudo mkdir -p /etc/nginx/ssl
+
+              # Option 1: If you have fullchain.pem and privkey.pem files
+              if [ -f "fullchain.pem" ] && [ -f "privkey.pem" ]; then
+                echo "Using local fullchain.pem and privkey.pem files..."
+                sudo cp fullchain.pem /etc/nginx/ssl/
+                sudo cp privkey.pem /etc/nginx/ssl/
+              # Option 2: If you have certificates as GitHub secrets
+              elif [ -n "${{ env.SSL_CERTIFICATE }}" ] && [ -n "${{ env.SSL_KEY }}" ]; then
+                echo "Using SSL certificates from GitHub secrets..."
+                echo "${{ env.SSL_CERTIFICATE }}" | sudo tee /etc/nginx/ssl/fullchain.pem > /dev/null
+                echo "${{ env.SSL_KEY }}" | sudo tee /etc/nginx/ssl/privkey.pem > /dev/null
+              else
+                echo "No SSL certificates found. Creating self-signed certificate for testing..."
+                sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                  -keyout /etc/nginx/ssl/privkey.pem \
+                  -out /etc/nginx/ssl/fullchain.pem \
+                  -subj "/C=US/ST=State/L=City/O=Organization/CN=${{ env.REMOTE_HOST }}"
+              fi
+
+              # Set proper permissions for SSL files
+              sudo chown root:root /etc/nginx/ssl/fullchain.pem /etc/nginx/ssl/privkey.pem
+              sudo chmod 644 /etc/nginx/ssl/fullchain.pem
+              sudo chmod 600 /etc/nginx/ssl/privkey.pem
+            else
+              echo "SSL certificates already exist, skipping setup..."
+            fi
+
+            # Configure Nginx with HTTPS and reverse proxy (always update config)
+            echo "Updating Nginx configuration..."
+            sudo tee /etc/nginx/sites-available/invoice > /dev/null << 'EOF'
+            server {
+              listen 80;
+              server_name ${{ env.REMOTE_HOST }};
+              return 301 https://$host$request_uri;
+            }
+
+            server {
+              listen 443 ssl http2;
+              server_name ${{ env.REMOTE_HOST }};
+              
+              # SSL Configuration
+              ssl_certificate /etc/nginx/ssl/fullchain.pem;
+              ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+              ssl_prefer_server_ciphers off;
+              ssl_session_cache shared:SSL:10m;
+              ssl_session_timeout 10m;
+              
+              # Security headers
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+              add_header X-Frame-Options DENY always;
+              add_header X-Content-Type-Options nosniff always;
+              add_header X-XSS-Protection "1; mode=block" always;
+              
+              location / {
+                proxy_pass http://localhost:3000;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header X-Forwarded-For $remote_addr;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-Host $server_name;
+                
+                # Proxy timeouts
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+              }
+            }
+            EOF
+
+            # Enable the site and test configuration (only if not already enabled)
+            if [ ! -L "/etc/nginx/sites-enabled/invoice" ]; then
+              echo "Enabling Nginx site..."
+              sudo ln -sf /etc/nginx/sites-available/invoice /etc/nginx/sites-enabled/invoice
+            fi
+
+            # Test and reload Nginx configuration
+            echo "Testing Nginx configuration..."
+            sudo nginx -t
+            if [ $? -eq 0 ]; then
+              echo "Nginx config test passed, reloading..."
+              sudo systemctl reload nginx
+            else
+              echo "Nginx config test failed, restarting..."
+              sudo systemctl restart nginx
+            fi
+
+            # Check and install PM2 (only if not present)
             if ! command -v pm2 &> /dev/null; then
               echo "Installing PM2..."
               sudo npm install -g pm2
             fi
 
+            # Update environment variables
             MONGODB_URI="${{ env.MONGODB_URI }}"
             SESSION_SECRET="${{ env.SESSION_SECRET }}"
             PORT="${{ env.PORT }}"
 
-            # Create .env file
+            # Create/update .env file
+            echo "Updating environment configuration..."
             sudo tee .env > /dev/null << EOF
               NODE_ENV=production
               MONGODB_URI=$MONGODB_URI
@@ -95,8 +202,19 @@ jobs:
               PORT=$PORT
             EOF
 
+            # Navigate to app directory and update dependencies
             cd invoice
-
+            echo "Installing/updating Node.js dependencies..."
             sudo npm install --production 
-            sudo npm run buildcss
-            pm2 restart index.js || pm2 start index.js
+
+            # Restart or start the application
+            echo "Restarting application..."
+            if pm2 list | grep -q "index.js"; then
+              pm2 restart index.js
+            else
+              pm2 start index.js
+            fi
+
+            # Final Nginx restart to ensure everything is working
+            echo "Final Nginx restart..."
+            sudo systemctl restart nginx
