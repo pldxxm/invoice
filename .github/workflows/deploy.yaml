@@ -159,8 +159,8 @@ jobs:
               server_name ${{ env.REMOTE_HOST }};
               return 301 https://$host$request_uri;
             }
-            
- 
+
+
 
 
             server {
@@ -198,9 +198,11 @@ jobs:
               }
             }
 
-              //reject visiting directly from IP
+              #reject visiting directly from IP
               server {
                 listen 443 ssl http2 default_server;
+                ssl_certificate /etc/nginx/ssl/fullchain.pem;
+                ssl_certificate_key /etc/nginx/ssl/privkey.pem;
                 server_name _;
                 return 403;
             }
