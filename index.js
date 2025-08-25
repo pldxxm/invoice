@@ -79,17 +79,15 @@ app.get("/test", (req, res) => {
 
 //fallback route for 404
 app.get(/.*/, (req, res) => {
-  res
-    .status(404)
-    .render("pages/error", {
-      title: "Not Found",
-      errorTitle: "404,Not Found",
-      errorMessage: "The page you are looking for does not exist.",
-    });
+  res.status(404).render("pages/error", {
+    title: "Not Found",
+    errorTitle: "404,Not Found",
+    errorMessage: "The page you are looking for does not exist.",
+  });
 });
 
 const PORT = process.env.PORT || 8844;
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "127.0.0.1", () => {
   console.log(`Server listening on port ${PORT}`);
 });

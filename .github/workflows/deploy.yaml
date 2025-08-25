@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: aws-ec2
-
+    # changed the ssl certificate and key 
     env: # ← Declare env variables here
       REMOTE_HOST: ${{ secrets.EC2_REMOTE_HOST }}
       REMOTE_USER: ubuntu
@@ -209,11 +209,7 @@ jobs:
 
             # Restart or start the application
             echo "Restarting application..."
-            if pm2 list | grep -q "index.js"; then
-              pm2 restart index.js
-            else
-              pm2 start index.js
-            fi
+            pm2 restart index.js ||   pm2 start index.js
 
             # Final Nginx restart to ensure everything is working
             echo "Final Nginx restart..."
