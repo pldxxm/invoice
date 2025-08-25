@@ -20,3 +20,4 @@ coverage/
 needs.md
 tests/
 jest.config.js
+deploy-bak.yaml

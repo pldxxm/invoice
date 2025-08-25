@@ -11,7 +11,7 @@ jobs:
     environment: aws-ec2
 
     env: # ← Declare env variables here
-      REMOTE_HOST: ${{ secrets.EC2_PUBLIC_IP }}
+      REMOTE_HOST: ${{ secrets.EC2_REMOTE_HOST }}
       REMOTE_USER: ubuntu
       # EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
